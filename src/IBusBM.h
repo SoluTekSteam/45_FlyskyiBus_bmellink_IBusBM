@@ -15,7 +15,10 @@
 
 #if defined(ARDUINO_ARCH_MBED)
 #include "mbed.h"
-#include "HardwareSerial.h"
+	#include "mbed.h"
+	#include "HardwareSerial.h"
+#elif defined(_RENESAS_RA_)
+	#include "FspTimer.h"
 #endif
 
 // if you have an opentx transciever you can add additional sensor types here.
@@ -32,9 +35,9 @@
 #if defined(ARDUINO_ARCH_MBED)
 #define HardwareSerial arduino::HardwareSerial
 #else
-  #if !defined(ARDUINO_ARCH_MEGAAVR)
-class HardwareSerial;
-  #endif
+	#if !defined(ARDUINO_ARCH_MEGAAVR) && !defined(_RENESAS_RA_)
+		class HardwareSerial;
+	#endif
 #endif
 class Stream;
 
