@@ -36,6 +36,16 @@ IBusBM* IBusBMfirst = NULL;
 SIGNAL(TIMER0_COMPA_vect) {
   if (IBusBMfirst) IBusBMfirst->loop();  // gets new servo values if available and process any sensor data
 }
+#elif defined _VARIANT_ARDUINO_STM32_
+void  onTimer(stimer_t *htim) {
+  if (IBusBMfirst) IBusBMfirst->loop();  // gets new servo values if available and process any sensor data
+}
+#elif defined _RENESAS_RA_
+FspTimer _fspTimer;
+void onTimerCallback(timer_callback_args_t __attribute((unused))* p_args) 
+{
+	if (IBusBMfirst) IBusBMfirst->loop();
+}
 #else
 void  onTimer() {
   if (IBusBMfirst) IBusBMfirst->loop();  // gets new servo values if available and process any sensor data
@@ -144,9 +154,27 @@ void IBusBM::begin(HardwareSerial &serial, int8_t timerid, int8_t rxPin, int8_t 
         NVIC_EnableIRQ(TIMER4_IRQn);
 
         NRF_TIMER4->TASKS_START = 1;      // Start TIMER2
+
+	  #elif defined(_RENESAS_RA_)
+	    uint8_t timer_type = GPT_TIMER;
+		int timerIndex = FspTimer::get_available_timer(timer_type);
+		if (timerIndex < 0)
+		{
+			// Failed. Force it to get any timer even AGT_TIMER
+			int timerIndex = FspTimer::get_available_timer(timer_type, true);
+		}
+		if (timerIndex > -1)
+		{
+			// We have a valid timer. Proceed to set the timer
+			FspTimer::force_use_of_pwm_reserved_timer();
+			_fspTimer.begin(TIMER_MODE_PERIODIC, timer_type, timerIndex, 1000, 0.0f, onTimerCallback);
+			_fspTimer.setup_overflow_irq();
+			_fspTimer.open();
+			_fspTimer.start();
+		}
       #else
         // It should not be too difficult to support additional architectures as most have timer functions, but I only tested AVR and ESP32
-        #warning "Timing only supportted for AVR, ESP32 and STM32 architectures. Use timerid IBUSBM_NOTIMER"
+        #warning "Timing only supportted for AVR, ESP32, Renesas_Uno and STM32 architectures. Use timerid IBUSBM_NOTIMER"
       #endif
     #endif
   }
